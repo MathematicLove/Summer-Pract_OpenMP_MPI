@@ -6,31 +6,7 @@
 
 bool isCorrectDecode(std::vector<unsigned char> &A, std::vector<unsigned char> &B);
 
-std::vector<unsigned char> toByteStream(std::vector<unsigned char> bitStream) {
-
-    int curPos = 0;
-    int sizeOfBits = bitStream.size();
-    std::vector<unsigned char> byteStream;
-
-    for (int i = 0; i < sizeOfBits; i++) {
-        curPos = 0;
-        std::string bits;
-        while (i + 1 < sizeOfBits && curPos < 8) {
-            curPos++;
-            if (int(bitStream[i]) == 0) {
-                bits.push_back('0');
-            } else {
-                bits.push_back('1');
-            }
-            i++;
-        }
-
-        int byten = std::stoi(bits, nullptr, 2);
-        unsigned char to_arr = byten;
-        byteStream.push_back(to_arr);
-    }
-    return byteStream;
-}
+std::vector<unsigned char> toByteStream(std::vector<unsigned char> bitStream);
 
 int main(int argc, char *argv[]) {
     int nthreads, tid;
@@ -185,23 +161,23 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            recvChunks.resize(nthreads - 1);
+            recvChunks.resize((nthreads == 1) ? 1 : nthreads - 1);
         }
         #pragma omp barrier
         if (tid == 0) {
             starttime = omp_get_wtime();
         }
 
-        int tsize = nthreads - 1;// количество выч. потоков
-        int trank = tid - 1;
+        int tsize = (nthreads == 1) ? 1 : nthreads - 1;// количество выч. потоков
+        int trank = (nthreads == 1) ? 0: tid - 1;
         int chunkSize = fileInLine.size() / tsize;
-        int remainder = fileInLine.size() % tsize;
+        int remainder = (nthreads == 1) ? 0 : fileInLine.size() % tsize;
         int myChunkSize = (trank < remainder) ? chunkSize + 1 : chunkSize; // размер сегмента
         int myOffset = trank * chunkSize + std::min(trank, remainder); // начало сегмента
 
         std::vector<unsigned char> localData;
 
-        if (tid != 0) {
+        if (tid != 0 || nthreads == 1) {
             localData.reserve(myChunkSize);
             std::vector<unsigned char> sendData(fileInLine.begin() + myOffset, fileInLine.begin() + myOffset + myChunkSize);
             std::cout << "[LOG INFO] Thread: " << tid << " has chunk: " << myOffset << " : " << myOffset + myChunkSize
@@ -259,4 +235,30 @@ bool isCorrectDecode(std::vector<unsigned char> &A, std::vector<unsigned char> &
     }
     return cor;
 
+}
+
+std::vector<unsigned char> toByteStream(std::vector<unsigned char> bitStream) {
+
+    int curPos = 0;
+    int sizeOfBits = bitStream.size();
+    std::vector<unsigned char> byteStream;
+
+    for (int i = 0; i < sizeOfBits; i++) {
+        curPos = 0;
+        std::string bits;
+        while (i + 1 < sizeOfBits && curPos < 8) {
+            curPos++;
+            if (int(bitStream[i]) == 0) {
+                bits.push_back('0');
+            } else {
+                bits.push_back('1');
+            }
+            i++;
+        }
+
+        int byten = std::stoi(bits, nullptr, 2);
+        unsigned char to_arr = byten;
+        byteStream.push_back(to_arr);
+    }
+    return byteStream;
 }
